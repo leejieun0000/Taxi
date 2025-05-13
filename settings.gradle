@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://repo.tmapapi.com/repository/tmap-sdk-release/' } // 🔹 Tmap 저장소 추가
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://repo.tmapapi.com/repository/tmap-sdk-release/' } // 🔹 Tmap 저장소 추가
+    }
+}
+
+rootProject.name = "TaxiApp"
+include ':app'
