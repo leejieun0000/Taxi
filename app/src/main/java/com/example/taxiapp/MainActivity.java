@@ -7,6 +7,11 @@ import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.content.Context;
+
 
 import com.skt.Tmap.TMapView;
 
@@ -48,7 +53,26 @@ public class MainActivity extends AppCompatActivity {
         tMapView.setTrackingMode(true);   // 지도 따라 움직임
         tMapView.setSightVisible(true);   // 시야 각도 표시
 
+        // ✅ 지도 중심 좌표를 직접 설정 (부산 시청)
+        tMapView.setLocationPoint(129.075642, 35.179554);
+        tMapView.setCenterPoint(129.075642, 35.179554); // 중심 이동
+
         mapContainer.addView(tMapView);
+
+        // ✅ 현재 위치로 지도 중심 이동
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (location != null) {
+                double lat = location.getLatitude();
+                double lon = location.getLongitude();
+                tMapView.setCenterPoint(lon, lat);  // 위도/경도 주의: (lon, lat)
+            } else {
+                // 위치가 null인 경우 → 기본 중심을 부산 시청으로
+                tMapView.setCenterPoint(129.075642, 35.179554);  // 부산 시청
+
+            }
+        }
     }
 
     // 권한 결과 처리
