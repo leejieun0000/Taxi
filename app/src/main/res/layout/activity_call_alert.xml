@@ -7,32 +7,47 @@
     android:padding="0dp">
 
     <!-- 상단 헤더 -->
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/header"
         android:layout_width="match_parent"
         android:layout_height="104dp"
         android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:orientation="horizontal"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:gravity="center_vertical">
+        android:elevation="4dp">
 
         <ImageView
+            android:id="@+id/taxi"
             android:layout_width="60dp"
             android:layout_height="60dp"
+            android:layout_marginStart="24dp"
+            android:layout_centerVertical="true"
             android:src="@drawable/taxi" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_toEndOf="@+id/taxi"
             android:layout_marginStart="20dp"
+            android:layout_centerVertical="true"
             android:text="택시 내비"
             android:fontFamily="@font/f_extrabold"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
             android:textColor="#5485F4"
-            android:textSize="50sp" />
-    </LinearLayout>
+            android:textSize="50sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btn_back_home"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_home"
+            android:contentDescription="홈으로"
+            app:tint="#FFFFFF" />
+    </RelativeLayout>
+
 
     <!-- 카드 콘텐츠 -->
     <LinearLayout
@@ -63,7 +78,7 @@
                 <LinearLayout
                     android:layout_width="700dp"
                     android:layout_height="80dp"
-                    android:background="#2B6B7EFF"
+                    android:background="#549BFF"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="12dp">
@@ -72,17 +87,16 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_phone"
-                        app:tint="#141414" />
+                        app:tint="#FFFFFF" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:fontFamily="@font/f_bold"
+                        android:fontFamily="@font/f_semibold"
                         android:text="새로운 호출"
-                        android:textColor="#111827"
-                        android:textSize="30sp"
-                        android:textStyle="bold" />
+                        android:textColor="#FFFFFF"
+                        android:textSize="30sp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -129,6 +143,7 @@
                                 android:textSize="23sp" />
 
                             <TextView
+                                android:id="@+id/text_departure_value"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="해운대"
@@ -166,6 +181,7 @@
                                 android:textSize="23sp" />
 
                             <TextView
+                                android:id="@+id/text_destination_value"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="광안리"
@@ -202,6 +218,7 @@
                                 android:textSize="23sp" />
 
                             <TextView
+                                android:id="@+id/text_time_value"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="20분"
