@@ -1,46 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F9FAFB">
 
     <!-- 상단 헤더 -->
-    <LinearLayout
+    <!-- 상단 헤더 -->
+    <RelativeLayout
         android:id="@+id/map_header"
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:orientation="horizontal"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:gravity="center_vertical">
+        android:elevation="4dp">
 
         <TextView
             android:id="@+id/map_header_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="모드 정보"
+            android:text="수요 지도"
             android:textColor="#1E40AF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:textSize="30sp"
+            android:fontFamily="@font/f_extrabold"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="24dp" />
+
+        <ImageButton
+            android:id="@+id/btn_back_home"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_home"
+            android:contentDescription="홈으로"
+            app:tint="#FFFFFF" />
+    </RelativeLayout>
 
     <!-- 지도 표시 영역 -->
     <FrameLayout
         android:id="@+id/map_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/map_header" >
-
-        <TextView
-            android:id="@+id/map_header_text2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="모드 정보"
-            android:textColor="#1E40AF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+        android:layout_below="@id/map_header"
+        android:layout_margin="0dp">
     </FrameLayout>
+
+    <!-- 확대/축소 버튼 -->
+    <LinearLayout
+        android:id="@+id/zoom_control"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="16dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="32dp">
+
+        <ImageButton
+            android:id="@+id/btn_zoom_in"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_add"
+            android:contentDescription="확대" />
+
+        <Space
+            android:layout_height="12dp"
+            android:layout_width="wrap_content" />
+
+        <ImageButton
+            android:id="@+id/btn_zoom_out"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_remove"
+            android:contentDescription="축소" />
+    </LinearLayout>
 
 </RelativeLayout>

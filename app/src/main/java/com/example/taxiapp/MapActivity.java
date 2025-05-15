@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import com.skt.Tmap.TMapView;
+import android.widget.ImageButton;
 
 public class MapActivity extends AppCompatActivity {
 
@@ -62,7 +63,15 @@ public class MapActivity extends AppCompatActivity {
 
         mapContainer.addView(tMapView);
 
-        // TODO: mode에 따라 수요 예측 마커 표시
+        ImageButton zoomIn = findViewById(R.id.btn_zoom_in);
+        ImageButton zoomOut = findViewById(R.id.btn_zoom_out);
+
+        zoomIn.setOnClickListener(v -> tMapView.MapZoomIn());
+        zoomOut.setOnClickListener(v -> tMapView.MapZoomOut());
+
+        ImageButton backHome = findViewById(R.id.btn_back_home);
+        backHome.setOnClickListener(v -> finish());  // 현재 액티비티 종료 → 이전(MainActivity)로
+
     }
 
     @Override
