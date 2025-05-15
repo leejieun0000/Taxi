@@ -27,7 +27,7 @@ public class CallAlertActivity extends AppCompatActivity {
 
         btnAccept.setOnClickListener(v -> {
             Toast.makeText(this, "수락하고 내비게이션 시작!", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(CallAlertActivity.this, MapActivity.class);
+            Intent intent = new Intent(CallAlertActivity.this, NavigationActivity.class);
             intent.putExtra("mode", "CALL");
             startActivity(intent);
             finish();
