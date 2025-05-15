@@ -35,9 +35,6 @@
         <activity android:name=".CallAlertActivity"
             android:theme="@style/Theme.TaxiApp"
             android:screenOrientation="reverseLandscape" />
-        <activity android:name=".CallAlertStep2Activity"
-            android:theme="@style/Theme.TaxiApp"
-            android:screenOrientation="reverseLandscape"/>
 
     </application>
 
