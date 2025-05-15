@@ -21,6 +21,7 @@
 
         <!-- ✅ MainActivity 등록 -->
         <activity android:name=".MainActivity"
+            android:theme="@style/Theme.TaxiApp"
             android:exported="true"
             android:screenOrientation="reverseLandscape">
             <intent-filter>
@@ -28,8 +29,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MapActivity" />
-        <activity android:name=".CallAlertActivity" />
+        <activity android:name=".MapActivity"
+            android:theme="@style/Theme.TaxiApp"
+            android:screenOrientation="reverseLandscape" />
+        <activity android:name=".CallAlertActivity"
+            android:theme="@style/Theme.TaxiApp"
+            android:screenOrientation="reverseLandscape" />
+        <activity android:name=".CallAlertStep2Activity"
+            android:theme="@style/Theme.TaxiApp"
+            android:screenOrientation="reverseLandscape"/>
 
     </application>
 
