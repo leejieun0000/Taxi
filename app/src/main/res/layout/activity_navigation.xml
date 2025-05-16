@@ -26,14 +26,6 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#000000" />
-
-        <TextView
-            android:id="@+id/route_info"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="3.2km / 12분"
-            android:textSize="14sp"
-            android:textColor="#666666" />
     </LinearLayout>
 
     <!-- 지도 영역 -->
@@ -55,6 +47,7 @@
         android:backgroundTint="#5B21B6"
         android:textColor="#FFFFFF"
         android:layout_margin="16dp"
-        app:layout_constraintTop_toTopOf="@id/info_panel"
+        app:layout_constraintTop_toBottomOf="@id/info_panel"
         app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
