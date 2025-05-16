@@ -57,7 +57,7 @@ public class CallAlertActivity extends AppCompatActivity {
             // 📌 각 항목 꺼내기
             String startName = call[0];
             String endName = call[1];
-            String durationText = call[2]; // "20분"
+            String durationText = call[2];
             int duration = Integer.parseInt(durationText.replace("분", ""));
 
             double startLat = Double.parseDouble(call[4]);

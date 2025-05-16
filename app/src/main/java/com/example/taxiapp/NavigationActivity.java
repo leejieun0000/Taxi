@@ -3,8 +3,6 @@ package com.example.taxiapp;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -50,10 +48,6 @@ public class NavigationActivity extends AppCompatActivity {
         TextView header = findViewById(R.id.map_header_text);
         header.setText(String.format("📍 %s → %s (예상 %d분)", startName, endName, duration));
 
-        Button btnNavi = findViewById(R.id.btn_start_navi);
-        btnNavi.setText("안내 시작");
-        btnNavi.setOnClickListener(v -> showRoute());
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -62,6 +56,14 @@ public class NavigationActivity extends AppCompatActivity {
         } else {
             initTMap();
         }
+
+        Button btnNavi = findViewById(R.id.btn_start_navi);
+        btnNavi.setText("안내 시작");
+        btnNavi.setOnClickListener(v -> showRoute());
+
+
+
+
     }
 
     private void initTMap() {
@@ -96,39 +98,59 @@ public class NavigationActivity extends AppCompatActivity {
                         TMapMarkerItem startMarker = new TMapMarkerItem();
                         startMarker.setTMapPoint(startPoint);
                         startMarker.setName("출발지");
-                        //startMarker.setCalloutTitle("출발");
-                        //Bitmap rawStart = BitmapFactory.decodeResource(getResources(), R.drawable.marker_start);
-                        //Bitmap resizedStart = Bitmap.createScaledBitmap(rawStart, 64, 64, false);
-                        //startMarker.setIcon(resizedStart);
                         startMarker.setCanShowCallout(true);
                         startMarker.setAutoCalloutVisible(true);
-                        //tMapView.addMarkerItem("start", startMarker);
+                        // tMapView.addMarkerItem("start", startMarker);
 
                         // 도착 마커
                         TMapMarkerItem endMarker = new TMapMarkerItem();
                         endMarker.setTMapPoint(endPoint);
                         endMarker.setName("도착지");
-                        //endMarker.setCalloutTitle("도착");
-                        //Bitmap rawEnd = BitmapFactory.decodeResource(getResources(), R.drawable.marker_end);
-                        //Bitmap resizedEnd = Bitmap.createScaledBitmap(rawEnd, 64, 64, false);
-                        //endMarker.setIcon(resizedEnd);
                         endMarker.setCanShowCallout(true);
                         endMarker.setAutoCalloutVisible(true);
-                        //tMapView.addMarkerItem("end", endMarker);
+                        // tMapView.addMarkerItem("end", endMarker);
 
-                        // 경로 중간으로 중심 이동
+                        // 중심 자동 조정
                         List<TMapPoint> points = polyline.getLinePoint();
                         if (points != null && !points.isEmpty()) {
-                            TMapPoint center = points.get(points.size() / 2);
+                            final double[] minLat = {Double.MAX_VALUE}, maxLat = {-Double.MAX_VALUE};
+                            final double[] minLon = {Double.MAX_VALUE}, maxLon = {-Double.MAX_VALUE};
+
+                            for (TMapPoint p : points) {
+                                minLat[0] = Math.min(minLat[0], p.getLatitude());
+                                maxLat[0] = Math.max(maxLat[0], p.getLatitude());
+                                minLon[0] = Math.min(minLon[0], p.getLongitude());
+                                maxLon[0] = Math.max(maxLon[0], p.getLongitude());
+                            }
+
+                            final double centerLat = (minLat[0] + maxLat[0]) / 2.0;
+                            final double centerLon = (minLon[0] + maxLon[0]) / 2.0;
+
                             runOnUiThread(() -> {
-                                tMapView.setCenterPoint(center.getLongitude(), center.getLatitude());
-                                tMapView.setZoomLevel(12);
+                                tMapView.setCenterPoint(centerLon, centerLat);
+
+                                double latDiff = maxLat[0] - minLat[0];
+                                double lonDiff = maxLon[0] - minLon[0];
+                                double maxDiff = Math.max(latDiff, lonDiff);
+
+                                int zoom;
+                                if (maxDiff < 0.01) zoom = 17;
+                                else if (maxDiff < 0.03) zoom = 16;
+                                else if (maxDiff < 0.08) zoom = 14;
+                                else if (maxDiff < 0.15) zoom = 13;
+                                else zoom = 12;
+
+
+
+
+                                tMapView.setZoomLevel(zoom);
                             });
                         }
                     }
                 }
         );
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
