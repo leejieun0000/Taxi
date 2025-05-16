@@ -12,9 +12,10 @@ import androidx.appcompat.app.AppCompatActivity;
 public class CallAlertActivity extends AppCompatActivity {
 
     private final String[][] callList = {
-            {"해운대", "광안리", "18분", "6.3km", "35.1587", "129.1604", "35.1531", "129.1185"},
-            {"부산 롯데월드", "아쿠아리움", "20분", "7.9km", "35.2310", "129.0832", "35.2325", "129.0840"},
-            {"서면역", "부산역", "14분", "5.3km", "35.1575", "129.0591", "35.1151", "129.0421"}
+            //현재 위치는 부산시청임
+            {"시청역 1번 출구", "온천천시민공원", "16분", "3.3km", "35.1798", "129.0766", "35.1923", "129.0880", "3분", "497m"},
+            {"이마트 연제점", "해운대 해수욕장", "33분", "8.2km", "35.1865", "129.0797", "35.1587", "129.1604", "3분", "497m" },
+            {"부산은행 거제동지점", "부산교육대학교", "9분", "1.7km", "35.187203", "129.078647", "35.1881", "129.0799", "3분", "497m"}
     };
 
     private int currentCallIndex = 0;
@@ -26,6 +27,8 @@ public class CallAlertActivity extends AppCompatActivity {
     private Button btnDecline;
     private Button btnAccept;
     private ImageButton btnBackHome;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,21 +62,31 @@ public class CallAlertActivity extends AppCompatActivity {
             String endName = call[1];
             String durationText = call[2];
             int duration = Integer.parseInt(durationText.replace("분", ""));
+            String distanceText = call[3];
 
             double startLat = Double.parseDouble(call[4]);
             double startLng = Double.parseDouble(call[5]);
             double endLat = Double.parseDouble(call[6]);
             double endLng = Double.parseDouble(call[7]);
+            String toStartDuration = call[8];
+            String toStartDistance = call[9];
 
             // ✅ Intent에 값 넣기
             Intent intent = new Intent(CallAlertActivity.this, NavigationActivity.class);
             intent.putExtra("startName", startName);
             intent.putExtra("endName", endName);
             intent.putExtra("duration", duration);
+            intent.putExtra("distanceText", distanceText);
             intent.putExtra("startLat", startLat);
             intent.putExtra("startLng", startLng);
             intent.putExtra("endLat", endLat);
             intent.putExtra("endLng", endLng);
+            intent.putExtra("toStartDuration", toStartDuration);
+            intent.putExtra("toStartDistance", toStartDistance);
+
+            // ✅ 부산시청 좌표 추가
+            intent.putExtra("cityHallLat", 35.179554);
+            intent.putExtra("cityHallLng", 129.075642);
 
             Toast.makeText(this, "내비게이션으로 이동합니다!", Toast.LENGTH_SHORT).show();
 
