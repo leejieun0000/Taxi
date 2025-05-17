@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -40,6 +41,11 @@ public class NavigationActivity extends AppCompatActivity {
     private Thread movementThread = null;
     private boolean isMoving = false;
 
+    private LinearLayout arrivalOverlay;
+    private TextView arrivalMessage;
+    private Button arrivalActionButton;
+
+
     private void updateHeaderText(String from, String to, String duration, String distance) {
         headerTextView.setText(String.format("📍 %s → %s (예상 %s, %s)", from, to, duration, distance));
     }
@@ -70,6 +76,12 @@ public class NavigationActivity extends AppCompatActivity {
         headerTextView = findViewById(R.id.map_header_text);
         updateHeaderText("부산시청", startName, toStartDuration, toStartDistance);
 
+        arrivalOverlay = findViewById(R.id.arrival_overlay);
+        arrivalMessage = findViewById(R.id.arrival_message);
+        arrivalActionButton = findViewById(R.id.arrival_action_button);
+        arrivalOverlay.setVisibility(View.GONE); // 처음에는 숨김
+
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -80,7 +92,7 @@ public class NavigationActivity extends AppCompatActivity {
         }
 
         btnNavi = findViewById(R.id.btn_start_navi);
-        btnNavi.setText("안내 시작");
+        btnNavi.setText("목적지로 안내");
         btnNavi.setOnClickListener(v -> initTMapBase(false));  // 안내 시작: 출발지 → 도착지
 
         btnStop = findViewById(R.id.btn_stop_navi); // 레이아웃에 미리 추가된 버튼 연결
@@ -123,7 +135,7 @@ public class NavigationActivity extends AppCompatActivity {
         }
     }
 
-    private void simulateMovement(List<TMapPoint> pathPoints) {
+    private void simulateMovement(List<TMapPoint> pathPoints, boolean isToPickup) {
         isMoving = true;
         movementThread = new Thread(() -> {
             Bitmap original = BitmapFactory.decodeResource(getResources(), R.drawable.navitaxi);
@@ -152,6 +164,29 @@ public class NavigationActivity extends AppCompatActivity {
                     return;
                 }
             }
+
+            runOnUiThread(() -> {
+                if (isToPickup) {
+                    arrivalMessage.setText("출발지에 도착했습니다. 손님을 태워주세요!");
+                    arrivalActionButton.setText("목적지로 안내");
+                    arrivalActionButton.setOnClickListener(v -> {
+                        arrivalOverlay.setVisibility(View.GONE);
+                        initTMapBase(false); // 목적지 안내 시작
+                    });
+                } else {
+                    arrivalMessage.setText("목적지에 도착했습니다!");
+                    arrivalActionButton.setText("안내 종료");
+                    arrivalActionButton.setOnClickListener(v -> {
+                        stopMovement();
+                        Intent intent = new Intent(NavigationActivity.this, MainActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(intent);
+                        finish();
+                    });
+                }
+                arrivalOverlay.setVisibility(View.VISIBLE);
+            });
+
         });
         movementThread.start();
     }
@@ -177,7 +212,7 @@ public class NavigationActivity extends AppCompatActivity {
                     tMapView.setCompassMode(false);
                     tMapView.setZoomLevel(18);
 
-                    simulateMovement(polyline.getLinePoint());
+                    simulateMovement(polyline.getLinePoint(), true);
                 })
         );
     }
@@ -207,7 +242,7 @@ public class NavigationActivity extends AppCompatActivity {
                     tMapView.setCompassMode(false);
                     tMapView.setZoomLevel(18);
 
-                    simulateMovement(polyline2.getLinePoint());
+                    simulateMovement(polyline2.getLinePoint(), false);
                 })
         );
     }
