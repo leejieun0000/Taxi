@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -34,7 +35,7 @@ public class NavigationActivity extends AppCompatActivity {
     private Button btnNavi;
     private Button btnStop;
 
-    private String startName, endName, toStartDuration, toStartDistance, distanceText;
+    private String startName, endName, toStartDuration, toStartDistance, distanceText, fareText;
     private int duration;
     private double cityHallLat, cityHallLng;
 
@@ -60,21 +61,23 @@ public class NavigationActivity extends AppCompatActivity {
         double startLng = intent.getDoubleExtra("startLng", 0);
         double endLat = intent.getDoubleExtra("endLat", 0);
         double endLng = intent.getDoubleExtra("endLng", 0);
-        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.179554);
-        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.075642);
+        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.1798);
+        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.076);
         startName = intent.getStringExtra("startName");
         endName = intent.getStringExtra("endName");
         duration = intent.getIntExtra("duration", -1);
         distanceText = intent.getStringExtra("distanceText");
         toStartDuration = intent.getStringExtra("toStartDuration");
         toStartDistance = intent.getStringExtra("toStartDistance");
+        fareText = intent.getStringExtra("fareText");
+
 
         startPoint = new TMapPoint(startLat, startLng);
         endPoint = new TMapPoint(endLat, endLng);
         cityHallPoint = new TMapPoint(cityHallLat, cityHallLng);
 
         headerTextView = findViewById(R.id.map_header_text);
-        updateHeaderText("부산시청", startName, toStartDuration, toStartDistance);
+        updateHeaderText("시청역 5번 출구", startName, toStartDuration, toStartDistance);
 
         arrivalOverlay = findViewById(R.id.arrival_overlay);
         arrivalMessage = findViewById(R.id.arrival_message);
@@ -88,12 +91,21 @@ public class NavigationActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
                     REQUEST_PERMISSIONS_CODE);
         } else {
-            initTMapBase(true);  // 처음 진입: 부산시청 → 출발지 경로
+            initTMapBase(true);  // 처음 진입: 시청역 5번 출구 → 출발지 경로
         }
 
         btnNavi = findViewById(R.id.btn_start_navi);
         btnNavi.setText("목적지로 안내");
-        btnNavi.setOnClickListener(v -> initTMapBase(false));  // 안내 시작: 출발지 → 도착지
+        btnNavi.setOnClickListener(v -> {
+            // 👉 도착 메시지가 떠 있으면 숨기기
+            if (arrivalOverlay != null) {
+                arrivalOverlay.setVisibility(View.GONE);
+            }
+
+            // 👉 안내 시작: 출발지 → 도착지
+            initTMapBase(false);
+        });
+
 
         btnStop = findViewById(R.id.btn_stop_navi); // 레이아웃에 미리 추가된 버튼 연결
         btnStop.setVisibility(View.GONE); // 처음엔 숨김
@@ -112,6 +124,7 @@ public class NavigationActivity extends AppCompatActivity {
         mapContainer.removeAllViews();
 
         tMapView = new TMapView(this);
+
         tMapView.setSKTMapApiKey("3AVBuNVIlpv01yJMOIr68HuKEoaqyAH6aMpxIInh");
 
         tMapView.setIconVisibility(true);
@@ -120,6 +133,14 @@ public class NavigationActivity extends AppCompatActivity {
         tMapView.setCenterPoint(startPoint.getLongitude(), startPoint.getLatitude());
 
         mapContainer.addView(tMapView);
+        tMapView.setZoomLevel(19);
+
+        ImageButton zoomIn = findViewById(R.id.btn_zoom_in);
+        ImageButton zoomOut = findViewById(R.id.btn_zoom_out);
+
+        zoomIn.setOnClickListener(v -> tMapView.MapZoomIn());
+        zoomOut.setOnClickListener(v -> tMapView.MapZoomOut());
+
 
         if (shouldShowRoute) {
             new android.os.Handler().postDelayed(this::showRoute, 500);
@@ -141,9 +162,17 @@ public class NavigationActivity extends AppCompatActivity {
             Bitmap original = BitmapFactory.decodeResource(getResources(), R.drawable.navitaxi);
             Bitmap scaled = Bitmap.createScaledBitmap(original, 100, 100, true);
 
-            for (TMapPoint point : pathPoints) {
+            try {
+                // 🔹 1. 시작 전 2초 대기
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                return;
+            }
+
+            for (int i = 0; i < pathPoints.size(); i++) {
                 if (!isMoving || tMapView == null) return;
 
+                final TMapPoint point = pathPoints.get(i);
                 runOnUiThread(() -> {
                     if (tMapView == null) return;
                     TMapMarkerItem movingMarker = new TMapMarkerItem();
@@ -155,11 +184,16 @@ public class NavigationActivity extends AppCompatActivity {
                     tMapView.addMarkerItem("moving", movingMarker);
 
                     tMapView.setCenterPoint(point.getLongitude(), point.getLatitude());
-                    tMapView.setZoomLevel(19);
+                    //tMapView.setZoomLevel(19);
                 });
 
                 try {
-                    Thread.sleep(500);
+                    // 🔹 2. 처음 몇 지점(예: 5개)은 천천히 이동
+                    if (i < 5) {
+                        Thread.sleep(1000); // 느리게
+                    } else {
+                        Thread.sleep(500); // 원래 속도
+                    }
                 } catch (InterruptedException e) {
                     return;
                 }
@@ -190,6 +224,7 @@ public class NavigationActivity extends AppCompatActivity {
         });
         movementThread.start();
     }
+
 
     private void showRoute() {
         if (tMapView == null) return;
