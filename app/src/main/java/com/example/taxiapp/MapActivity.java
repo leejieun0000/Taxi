@@ -1,29 +1,43 @@
 package com.example.taxiapp;
 
+import java.util.List;
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import com.skt.Tmap.TMapView;
-import android.widget.ImageButton;
+import com.skt.Tmap.TMapPoint;
+import com.skt.Tmap.TMapMarkerItem;
+
+import com.example.taxiapp.HeatmapService;
+import com.example.taxiapp.HeatmapResponse;
+import com.example.taxiapp.Prediction;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MapActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS_CODE = 1;
+    private static final String BASE_URL = "http://10.0.2.2:8000/";
     private TMapView tMapView;
     private String mode;
+    private HeatmapService heatmapService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_map);  // layout 파일: activity_map.xml
+        setContentView(R.layout.activity_map);
 
         mode = getIntent().getStringExtra("mode");
         TextView header = findViewById(R.id.map_header_text);
@@ -48,31 +62,104 @@ public class MapActivity extends AppCompatActivity {
 
         tMapView.setZoomLevel(15);
         tMapView.setIconVisibility(true);
-        tMapView.setTrackingMode(true);
+        tMapView.setTrackingMode(false);
         tMapView.setSightVisible(true);
-
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
-                tMapView.setCenterPoint(location.getLongitude(), location.getLatitude());
-            } else {
-                tMapView.setCenterPoint(129.075642, 35.179554); // 부산 시청
-            }
-        }
+        tMapView.setCenterPoint(129.075642, 35.179554);
 
         mapContainer.addView(tMapView);
 
+        // Retrofit 인스턴스 생성
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        heatmapService = retrofit.create(HeatmapService.class);
+
+        // 대기 장소 추천 모드일 때만 마커 로드
+        if ("WAIT".equals(mode)) {
+            fetchAndShowMarkers();
+        }
+
         ImageButton zoomIn = findViewById(R.id.btn_zoom_in);
         ImageButton zoomOut = findViewById(R.id.btn_zoom_out);
+        ImageButton backHome = findViewById(R.id.btn_back_home);
 
         zoomIn.setOnClickListener(v -> tMapView.MapZoomIn());
         zoomOut.setOnClickListener(v -> tMapView.MapZoomOut());
-
-        ImageButton backHome = findViewById(R.id.btn_back_home);
-        backHome.setOnClickListener(v -> finish());  // 현재 액티비티 종료 → 이전(MainActivity)로
-
+        backHome.setOnClickListener(v -> finish());
     }
+
+    private void fetchAndShowMarkers() {
+        Log.d("HeatmapTest", "▶ fetchAndShowMarkers() 호출, mode=" + mode);
+        heatmapService.getHeatmap().enqueue(new Callback<HeatmapResponse>() {
+            @Override
+            public void onResponse(Call<HeatmapResponse> call, Response<HeatmapResponse> response) {
+                Log.d("HeatmapTest", "▶ onResponse() HTTP 코드=" + response.code());
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.w("HeatmapTest", "   응답 실패 or body null. isSuccessful="
+                            + response.isSuccessful()
+                            + ", body=" + response.body());
+                    return;
+                }
+
+                HeatmapResponse body = response.body();
+                List<Prediction> list = body.getPredictions();
+                Log.d("HeatmapTest", "▶ 예측 개수=" + list.size());
+
+                // 기존 마커 전부 제거
+                tMapView.removeAllMarkerItem();
+                Log.d("HeatmapTest", "   removeAllMarkerItem() 호출됨");
+
+                int idx = 0;
+                for (Prediction p : list) {
+                    double lat = p.getLat();
+                    double lon = p.getLon();
+                    Log.d("HeatmapTest", String.format(
+                            "▶ [%d] 좌표=(%.6f, %.6f), demand=%d",
+                            ++idx, lat, lon, p.getDemand()));
+
+                    // 1) 마커 아이템 생성
+                    TMapMarkerItem marker = new TMapMarkerItem();
+                    Log.d("HeatmapTest", "   TMapMarkerItem 생성됨");
+
+                    // 2) 위치 설정
+                    marker.setTMapPoint(new TMapPoint(lat, lon));
+                    marker.setName("대기 장소 " + idx);
+                    marker.setVisible(TMapMarkerItem.VISIBLE);
+                    Log.d("HeatmapTest", "   setTMapPoint(), setName(), setVisible() 완료");
+
+                    // 3) 아이콘 디코딩
+                    Bitmap icon = BitmapFactory.decodeResource(
+                            getResources(),
+                            R.drawable.marker_red  // 실제 사용 중인 리소스 이름
+                    );
+                    if (icon == null) {
+                        Log.e("HeatmapTest", "   BitmapFactory.decodeResource() 가 null 반환!");
+                    } else {
+                        Log.d("HeatmapTest", "   아이콘 디코딩 완료 (w="
+                                + icon.getWidth() + ", h=" + icon.getHeight() + ")");
+                    }
+
+                    // 4) 아이콘 설정
+                    marker.setIcon(icon);
+                    Log.d("HeatmapTest", "   marker.setIcon() 호출됨");
+
+                    // 5) 맵에 추가
+                    String key = "marker" + idx;
+                    tMapView.addMarkerItem(key, marker);
+                    Log.d("HeatmapTest", "   addMarkerItem() 호출됨, key=" + key);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<HeatmapResponse> call, Throwable t) {
+                Log.e("HeatmapTest", "▶ onFailure(): " + t.getMessage(), t);
+            }
+        });
+    }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
