@@ -24,6 +24,17 @@ import com.skt.Tmap.TMapPolyLine;
 import com.skt.Tmap.TMapView;
 
 import java.util.List;
+import android.util.Log;
+import java.util.ArrayList;
+import java.util.Collections;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import com.example.taxiapp.HeatmapService;
+import com.example.taxiapp.HeatmapResponse;
+import com.example.taxiapp.Prediction;
 
 public class NavigationActivity extends AppCompatActivity {
 
@@ -46,7 +57,10 @@ public class NavigationActivity extends AppCompatActivity {
     private TextView arrivalMessage;
     private Button arrivalActionButton;
 
-
+    private static final String BASE_URL = "http://10.0.2.2:8000/";
+    private static final String TAG      = "NavigationActivity";
+    private HeatmapService   heatmapService;
+    private final List<String> heatmapKeys = new ArrayList<>();
     private void updateHeaderText(String from, String to, String duration, String distance) {
         headerTextView.setText(String.format("📍 %s → %s (예상 %s, %s)", from, to, duration, distance));
     }
@@ -116,6 +130,12 @@ public class NavigationActivity extends AppCompatActivity {
             startActivity(intent2);
             finish(); // 현재 화면 종료
         });
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        heatmapService = retrofit.create(HeatmapService.class);
     }
 
     private void initTMapBase(boolean shouldShowRoute) {
@@ -147,6 +167,8 @@ public class NavigationActivity extends AppCompatActivity {
         } else {
             new android.os.Handler().postDelayed(this::showRoute2, 500);
         }
+
+        fetchAndShowMarkers();
     }
 
     private void stopMovement() {
@@ -298,4 +320,76 @@ public class NavigationActivity extends AppCompatActivity {
             }
         }
     }
+    private void fetchAndShowMarkers() {
+        heatmapService.getHeatmap().enqueue(new Callback<HeatmapResponse>() {
+            @Override
+            public void onResponse(Call<HeatmapResponse> call, Response<HeatmapResponse> response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.e(TAG, "HeatmapResponse error: " + response.code());
+                    return;
+                }
+                List<Prediction> list = response.body().getPredictions();
+                // 기존 마커 클리어
+                for (String key : heatmapKeys) {
+                    tMapView.removeMarkerItem(key);
+                }
+                heatmapKeys.clear();
+
+                // 1) demand 값만 뽑아 내림차순 정렬
+                List<Integer> demands = new ArrayList<>();
+                for (Prediction p : list) {
+                    demands.add(p.getDemand());
+                }
+                Collections.sort(demands, Collections.reverseOrder());
+                int size = demands.size();
+                int redCount    = (int) Math.ceil(size * 0.3f);
+                int orangeCount = (int) Math.ceil(size * 0.6f);
+                int redThreshold    = demands.get(Math.min(redCount - 1, size - 1));
+                int orangeThreshold = demands.get(Math.min(orangeCount - 1, size - 1));
+
+                // 2) 마커 추가
+                int idx = 0;
+                for (Prediction p : list) {
+                    double lat = p.getLat();
+                    double lon = p.getLon();
+                    int demand = p.getDemand();
+
+                    // 1) demand에 따라 아이콘 선택
+                    Bitmap icon;
+                    if (demand >= redThreshold) {
+                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_red);
+                    } else if (demand >= orangeThreshold) {
+                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_orange);
+                    } else {
+                        // 하위 40%는 건너뜀
+                        continue;
+                    }
+
+                    // 2) 리소스가 null인지 확인
+                    if (icon == null) {
+                        Log.e(TAG, "Marker icon decode failed for demand=" + demand);
+                        continue;
+                    }
+
+                    // 3) 마커 키 생성 및 설정
+                    String key = "heatmap_" + (idx++);
+                    TMapMarkerItem marker = new TMapMarkerItem();
+                    marker.setTMapPoint(new TMapPoint(lat, lon));
+                    marker.setIcon(icon);
+                    marker.setPosition(0.5f, 1.0f);
+                    marker.setVisible(TMapMarkerItem.VISIBLE);
+
+                    // 4) 맵에 추가 및 키 저장
+                    tMapView.addMarkerItem(key, marker);
+                    heatmapKeys.add(key);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<HeatmapResponse> call, Throwable t) {
+                Log.e(TAG, "fetchAndShowMarkers onFailure: " + t.getMessage());
+            }
+        });
+    }
+
 }

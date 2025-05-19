@@ -1,6 +1,9 @@
 package com.example.taxiapp;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -13,6 +16,7 @@ import android.graphics.BitmapFactory;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+
 import com.skt.Tmap.TMapView;
 import com.skt.Tmap.TMapPoint;
 import com.skt.Tmap.TMapMarkerItem;
@@ -20,6 +24,7 @@ import com.skt.Tmap.TMapMarkerItem;
 import com.example.taxiapp.HeatmapService;
 import com.example.taxiapp.HeatmapResponse;
 import com.example.taxiapp.Prediction;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -27,7 +32,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MapActivity extends AppCompatActivity {
-
+    private static final String TAG = "MapActivity";
     private static final int REQUEST_PERMISSIONS_CODE = 1;
     private static final String BASE_URL = "http://10.0.2.2:8000/";
     private TMapView tMapView;
@@ -94,64 +99,67 @@ public class MapActivity extends AppCompatActivity {
         heatmapService.getHeatmap().enqueue(new Callback<HeatmapResponse>() {
             @Override
             public void onResponse(Call<HeatmapResponse> call, Response<HeatmapResponse> response) {
-                Log.d("HeatmapTest", "▶ onResponse() HTTP 코드=" + response.code());
-
                 if (!response.isSuccessful() || response.body() == null) {
-                    Log.w("HeatmapTest", "   응답 실패 or body null. isSuccessful="
-                            + response.isSuccessful()
-                            + ", body=" + response.body());
+                    Log.e(TAG, "HeatmapResponse error: " + response.code());
                     return;
                 }
-
-                HeatmapResponse body = response.body();
-                List<Prediction> list = body.getPredictions();
-                Log.d("HeatmapTest", "▶ 예측 개수=" + list.size());
+                List<Prediction> list = response.body().getPredictions();
+                Log.d(TAG, "▶ 예측 개수=" + list.size());
 
                 // 기존 마커 전부 제거
                 tMapView.removeAllMarkerItem();
-                Log.d("HeatmapTest", "   removeAllMarkerItem() 호출됨");
+                Log.d(TAG, "   removeAllMarkerItem() 호출됨");
 
+                // 1) 수요량만 추출해 내림차순 정렬 → 상위 30% 빨강, 다음 30% 주황 임계값 구하기
+                List<Integer> demands = new ArrayList<>();
+                for (Prediction pTemp : list) {
+                    demands.add(pTemp.getDemand());
+                }
+                Collections.sort(demands, Collections.reverseOrder());
+                int size = demands.size();
+                int redCount    = (int) Math.ceil(size * 0.3f);
+                int orangeCount = (int) Math.ceil(size * 0.6f);
+                final int redThreshold    = demands.get(Math.min(redCount - 1, size - 1));
+                final int orangeThreshold = demands.get(Math.min(orangeCount - 1, size - 1));
+                Log.d(TAG, "   redThreshold=" + redThreshold + ", orangeThreshold=" + orangeThreshold);
+
+                // 2) 마커 생성 및 아이콘 분기
                 int idx = 0;
                 for (Prediction p : list) {
-                    double lat = p.getLat();
-                    double lon = p.getLon();
-                    Log.d("HeatmapTest", String.format(
-                            "▶ [%d] 좌표=(%.6f, %.6f), demand=%d",
-                            ++idx, lat, lon, p.getDemand()));
+                    double lat    = p.getLat();
+                    double lon    = p.getLon();
+                    int    demand = p.getDemand();
+                    Log.d(TAG, String.format("▶ [%d] 좌표=(%.6f, %.6f), demand=%d",
+                            ++idx, lat, lon, demand));
 
-                    // 1) 마커 아이템 생성
+                    // 위치 설정
                     TMapMarkerItem marker = new TMapMarkerItem();
-                    Log.d("HeatmapTest", "   TMapMarkerItem 생성됨");
-
-                    // 2) 위치 설정
                     marker.setTMapPoint(new TMapPoint(lat, lon));
-                    marker.setName("대기 장소 " + idx);
                     marker.setVisible(TMapMarkerItem.VISIBLE);
-                    Log.d("HeatmapTest", "   setTMapPoint(), setName(), setVisible() 완료");
 
-                    // 3) 아이콘 디코딩
-                    Bitmap icon = BitmapFactory.decodeResource(
-                            getResources(),
-                            R.drawable.marker_red  // 실제 사용 중인 리소스 이름
-                    );
-                    if (icon == null) {
-                        Log.e("HeatmapTest", "   BitmapFactory.decodeResource() 가 null 반환!");
+                    // 수요량에 따른 아이콘 분기
+                    Bitmap icon;
+                    if (demand >= redThreshold) {
+                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_red);
+                    } else if (demand >= orangeThreshold) {
+                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_orange);
                     } else {
-                        Log.d("HeatmapTest", "   아이콘 디코딩 완료 (w="
-                                + icon.getWidth() + ", h=" + icon.getHeight() + ")");
+                        // 하위 40%는 표시하지 않음
+                        continue;
                     }
 
-                    // 4) 아이콘 설정
-                    marker.setIcon(icon);
-                    Log.d("HeatmapTest", "   marker.setIcon() 호출됨");
+                    if (icon == null) {
+                        Log.e(TAG, "   BitmapFactory.decodeResource() returned null");
+                        continue;
+                    }
 
-                    // 5) 맵에 추가
-                    String key = "marker" + idx;
-                    tMapView.addMarkerItem(key, marker);
-                    Log.d("HeatmapTest", "   addMarkerItem() 호출됨, key=" + key);
+                    // 마커에 아이콘 설정 및 추가
+                    marker.setIcon(icon);
+                    marker.setPosition(0.5f, 1.0f);
+                    tMapView.addMarkerItem("marker_" + idx, marker);
+                    Log.d(TAG, "   addMarkerItem() key=marker_" + idx);
                 }
             }
-
             @Override
             public void onFailure(Call<HeatmapResponse> call, Throwable t) {
                 Log.e("HeatmapTest", "▶ onFailure(): " + t.getMessage(), t);
