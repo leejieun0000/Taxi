@@ -116,36 +116,4 @@
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
-    <!-- 확대/축소 버튼 -->
-    <LinearLayout
-        android:id="@+id/zoom_control"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageButton
-            android:id="@+id/btn_zoom_in"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/round_sky_button"
-            android:src="@drawable/ic_add"
-            android:contentDescription="확대" />
-
-        <Space
-            android:layout_width="wrap_content"
-            android:layout_height="12dp" />
-
-        <ImageButton
-            android:id="@+id/btn_zoom_out"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/round_sky_button"
-            android:src="@drawable/ic_remove"
-            android:contentDescription="축소" />
-    </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

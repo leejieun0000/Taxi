@@ -49,8 +49,6 @@
     </RelativeLayout>
 
 
-
-
     <!-- 카드 콘텐츠 -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -99,17 +97,6 @@
                         android:text="새로운 호출"
                         android:textColor="#FFFFFF"
                         android:textSize="30sp" />
-
-                    <TextView
-                        android:id="@+id/text_pickup_info_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="24dp"
-                        android:text="출발지까지 1분/113m"
-                        android:textColor="#FFFFFF"
-                        android:textSize="20sp"
-                        android:fontFamily="@font/f_medium"/>
-
                 </LinearLayout>
             </LinearLayout>
 
@@ -225,7 +212,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="예상 정보"
+                                android:text="예상 소요 시간"
                                 android:fontFamily="@font/f_semibold"
                                 android:textColor="#111827"
                                 android:textSize="23sp" />
@@ -234,7 +221,7 @@
                                 android:id="@+id/text_time_value"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="20분 / 3.2km / 5200원"
+                                android:text="20분"
                                 android:fontFamily="@font/f_light"
                                 android:textColor="#111827"
                                 android:textSize="20sp" />

@@ -12,11 +12,10 @@ import androidx.appcompat.app.AppCompatActivity;
 public class CallAlertActivity extends AppCompatActivity {
 
     private final String[][] callList = {
-            //현재 위치는 시청역 5번 출구임
-            {"농협은행 부산시청지점", "연재 구청", "3분", "1.2km", "4800원", "35.178700", "129.073990", "35.17600", "129.0800", "1분", "443m"},
-            {"부산 시청", "연제 골프장", "4분", "1.2km", "4800원", "35.179554", "129.075642", "35.188100", "129.077450", "1분", "113m"},
-            {"브라운스톤연제 아파트", "낙민역", "12분", "3.8km", "6800원", "35.17700", "129.0797", "35.2000", "129.0915", "2분", "703m" }
-
+            //현재 위치는 부산시청임
+            {"시청역 1번 출구", "온천천시민공원", "16분", "3.3km", "35.1798", "129.0766", "35.1923", "129.0880", "3분", "497m"},
+            {"이마트 연제점", "해운대 해수욕장", "33분", "8.2km", "35.1865", "129.0797", "35.1587", "129.1604", "3분", "497m" },
+            {"부산은행 거제동지점", "부산교육대학교", "9분", "1.7km", "35.187203", "129.078647", "35.1881", "129.0799", "3분", "497m"}
     };
 
     private int currentCallIndex = 0;
@@ -28,8 +27,6 @@ public class CallAlertActivity extends AppCompatActivity {
     private Button btnDecline;
     private Button btnAccept;
     private ImageButton btnBackHome;
-    private TextView pickupInfoValue;  // 시청역 → 출발지 시간 및 거리
-
 
 
 
@@ -44,8 +41,6 @@ public class CallAlertActivity extends AppCompatActivity {
         btnDecline = findViewById(R.id.btn_decline);
         btnAccept = findViewById(R.id.btn_accept);
         btnBackHome = findViewById(R.id.btn_back_home);
-        pickupInfoValue = findViewById(R.id.text_pickup_info_value);
-
 
         updateCallInfo(); // 첫 호출 정보 표시
 
@@ -68,15 +63,13 @@ public class CallAlertActivity extends AppCompatActivity {
             String durationText = call[2];
             int duration = Integer.parseInt(durationText.replace("분", ""));
             String distanceText = call[3];
-            String fareText = call[4]; // 💰 요금 정보 (예: "6800원")
 
-
-            double startLat = Double.parseDouble(call[5]);
-            double startLng = Double.parseDouble(call[6]);
-            double endLat = Double.parseDouble(call[7]);
-            double endLng = Double.parseDouble(call[8]);
-            String toStartDuration = call[9];
-            String toStartDistance = call[10];
+            double startLat = Double.parseDouble(call[4]);
+            double startLng = Double.parseDouble(call[5]);
+            double endLat = Double.parseDouble(call[6]);
+            double endLng = Double.parseDouble(call[7]);
+            String toStartDuration = call[8];
+            String toStartDistance = call[9];
 
             // ✅ Intent에 값 넣기
             Intent intent = new Intent(CallAlertActivity.this, NavigationActivity.class);
@@ -84,8 +77,6 @@ public class CallAlertActivity extends AppCompatActivity {
             intent.putExtra("endName", endName);
             intent.putExtra("duration", duration);
             intent.putExtra("distanceText", distanceText);
-            intent.putExtra("fareText", fareText);
-
             intent.putExtra("startLat", startLat);
             intent.putExtra("startLng", startLng);
             intent.putExtra("endLat", endLat);
@@ -93,9 +84,9 @@ public class CallAlertActivity extends AppCompatActivity {
             intent.putExtra("toStartDuration", toStartDuration);
             intent.putExtra("toStartDistance", toStartDistance);
 
-            // ✅ 시청역 5번 출구 좌표 추가
-            intent.putExtra("cityHallLat", 35.1798);
-            intent.putExtra("cityHallLng", 129.076);
+            // ✅ 부산시청 좌표 추가
+            intent.putExtra("cityHallLat", 35.179554);
+            intent.putExtra("cityHallLng", 129.075642);
 
             Toast.makeText(this, "내비게이션으로 이동합니다!", Toast.LENGTH_SHORT).show();
 
@@ -113,17 +104,8 @@ public class CallAlertActivity extends AppCompatActivity {
 
     private void updateCallInfo() {
         String[] call = callList[currentCallIndex];
-
         departureValue.setText(call[0]);
         destinationValue.setText(call[1]);
-
-        // 🔶 출발지 → 도착지까지 예상 시간 + 거리 + 요금
-        String formatted = call[2] + " / " + call[3] + " / " + call[4];
-        timeValue.setText(formatted);
-
-        // 🔷출발지까지 시간 + 거리
-        String pickupInfo = "출발지까지 " + call[9] + " / " + call[10];
-        pickupInfoValue.setText(pickupInfo);
+        timeValue.setText(call[2]);
     }
-
 }
