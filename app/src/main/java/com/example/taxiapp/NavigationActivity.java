@@ -37,7 +37,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class NavigationActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS_CODE = 1;
-    private static final String BASE_URL = "http://10.0.2.2:8000/";
+    private static final String BASE_URL = "https://fastapi-server-kleo.onrender.com";
     private static final String TAG = "NavigationActivity";
 
     private TMapView tMapView;
