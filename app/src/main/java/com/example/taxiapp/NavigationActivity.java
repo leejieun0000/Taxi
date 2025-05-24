@@ -6,9 +6,11 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -22,132 +24,243 @@ import com.skt.Tmap.TMapPoint;
 import com.skt.Tmap.TMapPolyLine;
 import com.skt.Tmap.TMapView;
 
-import java.util.List;
-import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+import java.util.List;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import com.example.taxiapp.HeatmapService;
-import com.example.taxiapp.HeatmapResponse;
-import com.example.taxiapp.Prediction;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class NavigationActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS_CODE = 1;
+    private static final String BASE_URL = "http://10.0.2.2:8000/";
+    private static final String TAG = "NavigationActivity";
+
     private TMapView tMapView;
     private TMapPoint startPoint, endPoint, cityHallPoint;
-
     private TextView headerTextView;
-    private Button btnNavi;
-    private Button btnStop;
+    private Button btnNavi, btnStop;
+    private LinearLayout arrivalOverlay;
+    private TextView arrivalMessage;
+    private Button arrivalActionButton;
 
-    private String startName, endName, toStartDuration, toStartDistance, distanceText;
+    private String startName, endName, toStartDuration, toStartDistance, distanceText, fareText;
     private int duration;
     private double cityHallLat, cityHallLng;
 
     private Thread movementThread = null;
     private boolean isMoving = false;
 
-    private LinearLayout arrivalOverlay;
-    private TextView arrivalMessage;
-    private Button arrivalActionButton;
-
-    private static final String BASE_URL = "http://10.0.2.2:8000/";
-    private static final String TAG      = "NavigationActivity";
-    private HeatmapService   heatmapService;
+    private HeatmapService heatmapService;
     private final List<String> heatmapKeys = new ArrayList<>();
-    private void updateHeaderText(String from, String to, String duration, String distance) {
-        headerTextView.setText(String.format("📍 %s → %s (예상 %s, %s)", from, to, duration, distance));
+
+    private boolean isAutoCentering = true;  // 자동차 중심 따라가기 여부
+
+    private void setupMapTouchListener() {
+        tMapView.setOnTouchListener((v, event) -> {
+            isAutoCentering = false;  // 손으로 움직였을 때는 추적 중지
+            return false;
+        });
     }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_navigation);
 
+        // --- Intent 에서 받은 데이터 파싱 ---
         Intent intent = getIntent();
         double startLat = intent.getDoubleExtra("startLat", 0);
         double startLng = intent.getDoubleExtra("startLng", 0);
         double endLat = intent.getDoubleExtra("endLat", 0);
         double endLng = intent.getDoubleExtra("endLng", 0);
-        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.179554);
-        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.075642);
+        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.1798);
+        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.076);
         startName = intent.getStringExtra("startName");
         endName = intent.getStringExtra("endName");
         duration = intent.getIntExtra("duration", -1);
         distanceText = intent.getStringExtra("distanceText");
         toStartDuration = intent.getStringExtra("toStartDuration");
         toStartDistance = intent.getStringExtra("toStartDistance");
+        fareText = intent.getStringExtra("fareText");
 
         startPoint = new TMapPoint(startLat, startLng);
-        endPoint = new TMapPoint(endLat, endLng);
+        endPoint   = new TMapPoint(endLat, endLng);
         cityHallPoint = new TMapPoint(cityHallLat, cityHallLng);
 
+        // --- 뷰 바인딩 및 초기 텍스트 설정 ---
         headerTextView = findViewById(R.id.map_header_text);
-        updateHeaderText("부산시청", startName, toStartDuration, toStartDistance);
+        updateHeaderText("시청역 5번 출구", startName, toStartDuration, toStartDistance);
 
-        arrivalOverlay = findViewById(R.id.arrival_overlay);
-        arrivalMessage = findViewById(R.id.arrival_message);
-        arrivalActionButton = findViewById(R.id.arrival_action_button);
-        arrivalOverlay.setVisibility(View.GONE); // 처음에는 숨김
+        arrivalOverlay       = findViewById(R.id.arrival_overlay);
+        arrivalMessage       = findViewById(R.id.arrival_message);
+        arrivalActionButton  = findViewById(R.id.arrival_action_button);
+        arrivalOverlay.setVisibility(View.GONE);  // 처음엔 숨김
 
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
-                    REQUEST_PERMISSIONS_CODE);
-        } else {
-            initTMapBase(true);  // 처음 진입: 부산시청 → 출발지 경로
-        }
-
-        btnNavi = findViewById(R.id.btn_start_navi);
-        btnNavi.setText("목적지로 안내");
-        btnNavi.setOnClickListener(v -> initTMapBase(false));  // 안내 시작: 출발지 → 도착지
-
-        btnStop = findViewById(R.id.btn_stop_navi); // 레이아웃에 미리 추가된 버튼 연결
-        btnStop.setVisibility(View.GONE); // 처음엔 숨김
-        btnStop.setOnClickListener(v -> {
-            stopMovement();  // 🔴 마커 스레드 종료
-            Intent intent2 = new Intent(NavigationActivity.this, MainActivity.class);
-            intent2.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);  // 스택 초기화
-            startActivity(intent2);
-            finish(); // 현재 화면 종료
-        });
-
+        // --- Retrofit + HeatmapService 초기화 ---
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         heatmapService = retrofit.create(HeatmapService.class);
+
+        // --- 위치 권한 체크 및 맵 초기화 ---
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
+                    REQUEST_PERMISSIONS_CODE);
+        } else {
+            initTMapBase(true);  // 권한 있으면 바로 맵 + heatmap 마커 로드
+        }
+
+        ImageButton gpsBtn = findViewById(R.id.btn_gps);
+        gpsBtn.setOnClickListener(v -> {
+            isAutoCentering = true;  // 다시 자동차 중심으로
+            TMapMarkerItem movingMarker = tMapView.getMarkerItemFromID("moving");
+            if (movingMarker != null) {
+                TMapPoint current = movingMarker.getTMapPoint();
+                tMapView.setCenterPoint(current.getLongitude(), current.getLatitude());
+            }
+        });
+
+
+        // --- 네비게이션 시작 버튼 ---
+        btnNavi = findViewById(R.id.btn_start_navi);
+        btnNavi.setText("목적지로 안내");
+        btnNavi.setOnClickListener(v -> {
+            arrivalOverlay.setVisibility(View.GONE);
+            initTMapBase(false);
+        });
+
+        // --- 네비게이션 중지 버튼 ---
+        btnStop = findViewById(R.id.btn_stop_navi);
+        btnStop.setVisibility(View.GONE);
+        btnStop.setOnClickListener(v -> {
+            stopMovement();
+            Intent main = new Intent(NavigationActivity.this, MainActivity.class);
+            main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(main);
+            finish();
+        });
     }
 
-    private void initTMapBase(boolean shouldShowRoute) {
-        stopMovement();  // 이전 스레드 정지
+    private void initTMapBase(boolean toPickup) {
+        stopMovement();
+
         FrameLayout mapContainer = findViewById(R.id.map_container);
         mapContainer.removeAllViews();
 
         tMapView = new TMapView(this);
         tMapView.setSKTMapApiKey("3AVBuNVIlpv01yJMOIr68HuKEoaqyAH6aMpxIInh");
-
         tMapView.setIconVisibility(true);
         tMapView.setTrackingMode(false);
         tMapView.setSightVisible(false);
         tMapView.setCenterPoint(startPoint.getLongitude(), startPoint.getLatitude());
-
+        tMapView.setZoomLevel(19);
         mapContainer.addView(tMapView);
+        setupMapTouchListener(); // 👈 이 줄 추가
 
-        if (shouldShowRoute) {
-            new android.os.Handler().postDelayed(this::showRoute, 500);
-        } else {
-            new android.os.Handler().postDelayed(this::showRoute2, 500);
-        }
+        ImageButton zoomIn = findViewById(R.id.btn_zoom_in);
+        ImageButton zoomOut = findViewById(R.id.btn_zoom_out);
+        zoomIn.setOnClickListener(v -> tMapView.MapZoomIn());
+        zoomOut.setOnClickListener(v -> tMapView.MapZoomOut());
 
+        // 0.5초 지연 후 경로 표시
+        new android.os.Handler().postDelayed(() -> {
+            if (toPickup) showRouteFromCityHall();
+            else showRouteToDestination();
+        }, 500);
+
+        // heatmap 마커 로드
         fetchAndShowMarkers();
+    }
+
+    private void showRouteFromCityHall() {
+        TMapData data = new TMapData();
+        data.findPathDataWithType(TMapData.TMapPathType.CAR_PATH, cityHallPoint, startPoint, poly -> {
+            runOnUiThread(() -> {
+                poly.setLineWidth(30);
+                poly.setLineColor(0xFF10B981);
+                tMapView.addTMapPath(poly);
+                simulateMovement(poly.getLinePoint(), true);
+            });
+        });
+    }
+
+    private void showRouteToDestination() {
+        TMapData data = new TMapData();
+        data.findPathDataWithType(TMapData.TMapPathType.CAR_PATH, startPoint, endPoint, poly -> {
+            runOnUiThread(() -> {
+                updateHeaderText(startName, endName, duration + "분", distanceText);
+                btnNavi.setVisibility(View.GONE);
+                btnStop.setVisibility(View.VISIBLE);
+                poly.setLineWidth(30);
+                poly.setLineColor(0xFF1E3A8A);
+                tMapView.addTMapPath(poly);
+                simulateMovement(poly.getLinePoint(), false);
+            });
+        });
+    }
+
+    private void simulateMovement(List<TMapPoint> pathPoints, boolean toPickup) {
+        isMoving = true;
+        movementThread = new Thread(() -> {
+            Bitmap taxiIcon = BitmapFactory.decodeResource(getResources(), R.drawable.navitaxi);
+            Bitmap scaled   = Bitmap.createScaledBitmap(taxiIcon, 100, 100, true);
+
+            try {
+                Thread.sleep(3000);  // 시작 전 준비 시간
+            } catch (InterruptedException e) {
+                return;
+            }
+
+            for (int i = 0; i < pathPoints.size() && isMoving; i++) {
+                final TMapPoint pt = pathPoints.get(i);
+                runOnUiThread(() -> {
+                    tMapView.removeMarkerItem("moving");
+                    TMapMarkerItem m = new TMapMarkerItem();
+                    m.setTMapPoint(pt);
+                    m.setIcon(scaled);
+                    tMapView.addMarkerItem("moving", m);
+                    if (isAutoCentering) {
+                        tMapView.setCenterPoint(pt.getLongitude(), pt.getLatitude());
+                    }
+
+                });
+                try {
+                    Thread.sleep(i < 5 ? 1000 : 500);
+                } catch (InterruptedException ignored) { return; }
+            }
+
+            runOnUiThread(() -> {
+                arrivalOverlay.setVisibility(View.VISIBLE);
+                if (toPickup) {
+                    arrivalMessage.setText("출발지에 도착했습니다. 손님을 태워주세요!");
+                    arrivalActionButton.setText("목적지로 안내");
+                    arrivalActionButton.setOnClickListener(v -> {
+                        arrivalOverlay.setVisibility(View.GONE);
+                        initTMapBase(false);
+                    });
+                } else {
+                    arrivalMessage.setText("목적지에 도착했습니다!");
+                    arrivalActionButton.setText("안내 종료");
+                    arrivalActionButton.setOnClickListener(v -> {
+                        stopMovement();
+                        Intent main = new Intent(NavigationActivity.this, MainActivity.class);
+                        main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(main);
+                        finish();
+                    });
+                }
+            });
+        });
+        movementThread.start();
     }
 
     private void stopMovement() {
@@ -157,195 +270,49 @@ public class NavigationActivity extends AppCompatActivity {
         }
     }
 
-    private void simulateMovement(List<TMapPoint> pathPoints, boolean isToPickup) {
-        isMoving = true;
-        movementThread = new Thread(() -> {
-            Bitmap original = BitmapFactory.decodeResource(getResources(), R.drawable.navitaxi);
-            Bitmap scaled = Bitmap.createScaledBitmap(original, 100, 100, true);
-
-            for (TMapPoint point : pathPoints) {
-                if (!isMoving || tMapView == null) return;
-
-                runOnUiThread(() -> {
-                    if (tMapView == null) return;
-                    TMapMarkerItem movingMarker = new TMapMarkerItem();
-                    movingMarker.setTMapPoint(point);
-                    movingMarker.setIcon(scaled);
-                    movingMarker.setName("택시 이동 중");
-
-                    tMapView.removeMarkerItem("moving");
-                    tMapView.addMarkerItem("moving", movingMarker);
-
-                    tMapView.setCenterPoint(point.getLongitude(), point.getLatitude());
-                    tMapView.setZoomLevel(19);
-                });
-
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-
-            runOnUiThread(() -> {
-                if (isToPickup) {
-                    arrivalMessage.setText("출발지에 도착했습니다. 손님을 태워주세요!");
-                    arrivalActionButton.setText("목적지로 안내");
-                    arrivalActionButton.setOnClickListener(v -> {
-                        arrivalOverlay.setVisibility(View.GONE);
-                        initTMapBase(false); // 목적지 안내 시작
-                    });
-                } else {
-                    arrivalMessage.setText("목적지에 도착했습니다!");
-                    arrivalActionButton.setText("안내 종료");
-                    arrivalActionButton.setOnClickListener(v -> {
-                        stopMovement();
-                        Intent intent = new Intent(NavigationActivity.this, MainActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        startActivity(intent);
-                        finish();
-                    });
-                }
-                arrivalOverlay.setVisibility(View.VISIBLE);
-            });
-
-        });
-        movementThread.start();
-    }
-
-    private void showRoute() {
-        if (tMapView == null) return;
-
-        TMapData tMapData = new TMapData();
-        tMapData.findPathDataWithType(
-                TMapData.TMapPathType.CAR_PATH,
-                cityHallPoint,
-                startPoint,
-                polyline -> runOnUiThread(() -> {
-                    polyline.setLineWidth(30);
-                    polyline.setLineColor(0xFF10B981);
-                    tMapView.addTMapPath(polyline);
-
-                    TextView directionBanner = findViewById(R.id.text_direction_banner);
-                    directionBanner.setText("➡ 300m 직진 후 우회전");
-
-                    tMapView.setTrackingMode(false);
-                    tMapView.setSightVisible(false);
-                    tMapView.setCompassMode(false);
-                    tMapView.setZoomLevel(18);
-
-                    simulateMovement(polyline.getLinePoint(), true);
-                })
-        );
-    }
-
-    private void showRoute2() {
-        if (tMapView == null) return;
-
-        TMapData tMapData = new TMapData();
-        tMapData.findPathDataWithType(
-                TMapData.TMapPathType.CAR_PATH,
-                startPoint,
-                endPoint,
-                polyline2 -> runOnUiThread(() -> {
-                    updateHeaderText(startName, endName, duration + "분", distanceText);
-                    btnNavi.setVisibility(View.GONE);
-                    btnStop.setVisibility(View.VISIBLE);  // 안내종료 버튼 보임 ✅
-
-                    polyline2.setLineWidth(30);
-                    polyline2.setLineColor(0xFF1E3A8A);
-                    tMapView.addTMapPath(polyline2);
-
-                    TextView directionBanner = findViewById(R.id.text_direction_banner);
-                    directionBanner.setText("➡ 300m 직진 후 우회전");
-
-                    tMapView.setTrackingMode(false);
-                    tMapView.setSightVisible(false);
-                    tMapView.setCompassMode(false);
-                    tMapView.setZoomLevel(18);
-
-                    simulateMovement(polyline2.getLinePoint(), false);
-                })
-        );
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_PERMISSIONS_CODE) {
-            boolean granted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    granted = false;
-                    break;
-                }
-            }
-            if (granted) {
-                initTMapBase(true);
-            }
-        }
-    }
     private void fetchAndShowMarkers() {
+        if (heatmapService == null) {
+            Log.e(TAG, "heatmapService is null! Retrofit 초기화 확인");
+            return;
+        }
+
         heatmapService.getHeatmap().enqueue(new Callback<HeatmapResponse>() {
             @Override
-            public void onResponse(Call<HeatmapResponse> call, Response<HeatmapResponse> response) {
-                if (!response.isSuccessful() || response.body() == null) {
-                    Log.e(TAG, "HeatmapResponse error: " + response.code());
+            public void onResponse(Call<HeatmapResponse> call, Response<HeatmapResponse> resp) {
+                if (!resp.isSuccessful() || resp.body() == null) {
+                    Log.e(TAG, "HeatmapResponse error: " + resp.code());
                     return;
                 }
-                List<Prediction> list = response.body().getPredictions();
-                // 기존 마커 클리어
+                List<Prediction> list = resp.body().getPredictions();
+
+                // 기존 heatmap 마커 제거
                 for (String key : heatmapKeys) {
                     tMapView.removeMarkerItem(key);
                 }
                 heatmapKeys.clear();
 
-                // 1) demand 값만 뽑아 내림차순 정렬
+                // 수요량 순위 계산
                 List<Integer> demands = new ArrayList<>();
-                for (Prediction p : list) {
-                    demands.add(p.getDemand());
-                }
+                for (Prediction p : list) demands.add(p.getDemand());
                 Collections.sort(demands, Collections.reverseOrder());
-                int size = demands.size();
-                int redCount    = (int) Math.ceil(size * 0.3f);
-                int orangeCount = (int) Math.ceil(size * 0.6f);
-                int redThreshold    = demands.get(Math.min(redCount - 1, size - 1));
-                int orangeThreshold = demands.get(Math.min(orangeCount - 1, size - 1));
+                int n = demands.size();
+                int redThIdx    = Math.min((int)Math.ceil(n*0.3)-1, n-1);
+                int orangeThIdx = Math.min((int)Math.ceil(n*0.6)-1, n-1);
+                int redTh    = demands.get(Math.max(redThIdx,0));
+                int orangeTh = demands.get(Math.max(orangeThIdx,0));
 
-                // 2) 마커 추가
                 int idx = 0;
                 for (Prediction p : list) {
-                    double lat = p.getLat();
-                    double lon = p.getLon();
-                    int demand = p.getDemand();
+                    int d = p.getDemand();
+                    if (d < orangeTh) continue;  // 하위 40% 스킵
 
-                    // 1) demand에 따라 아이콘 선택
-                    Bitmap icon;
-                    if (demand >= redThreshold) {
-                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_red);
-                    } else if (demand >= orangeThreshold) {
-                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_orange);
-                    } else {
-                        // 하위 40%는 건너뜀
-                        continue;
-                    }
-
-                    // 2) 리소스가 null인지 확인
-                    if (icon == null) {
-                        Log.e(TAG, "Marker icon decode failed for demand=" + demand);
-                        continue;
-                    }
-
-                    // 3) 마커 키 생성 및 설정
-                    String key = "heatmap_" + (idx++);
-                    TMapMarkerItem marker = new TMapMarkerItem();
-                    marker.setTMapPoint(new TMapPoint(lat, lon));
-                    marker.setIcon(icon);
-                    marker.setPosition(0.5f, 1.0f);
-                    marker.setVisible(TMapMarkerItem.VISIBLE);
-
-                    // 4) 맵에 추가 및 키 저장
-                    tMapView.addMarkerItem(key, marker);
+                    Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                            d >= redTh ? R.drawable.marker_red : R.drawable.marker_orange);
+                    String key = "heat_" + (idx++);
+                    TMapMarkerItem m = new TMapMarkerItem();
+                    m.setTMapPoint(new TMapPoint(p.getLat(), p.getLon()));
+                    m.setIcon(icon);
+                    tMapView.addMarkerItem(key, m);
                     heatmapKeys.add(key);
                 }
             }
@@ -357,4 +324,17 @@ public class NavigationActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public void onRequestPermissionsResult(int req, @NonNull String[] perms, @NonNull int[] results) {
+        super.onRequestPermissionsResult(req, perms, results);
+        if (req == REQUEST_PERMISSIONS_CODE) {
+            boolean ok = true;
+            for (int r : results) if (r != PackageManager.PERMISSION_GRANTED) { ok = false; break; }
+            if (ok) initTMapBase(true);
+        }
+    }
+
+    private void updateHeaderText(String from, String to, String dur, String dist) {
+        headerTextView.setText(String.format("📍 %s → %s (예상 %s, %s)", from, to, dur, dist));
+    }
 }

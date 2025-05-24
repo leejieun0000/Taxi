@@ -116,4 +116,48 @@
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
+    <!-- 확대/축소 버튼 -->
+    <LinearLayout
+        android:id="@+id/zoom_control"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btn_zoom_in"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_add"
+            android:contentDescription="확대" />
+
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="12dp" />
+
+        <ImageButton
+            android:id="@+id/btn_zoom_out"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/round_sky_button"
+            android:src="@drawable/ic_remove"
+            android:contentDescription="축소" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btn_gps"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginBottom="8dp"
+        android:background="@null"
+        android:src="@drawable/gps"
+        android:scaleType="centerInside"
+        android:contentDescription="GPS"
+        app:layout_constraintEnd_toEndOf="@id/zoom_control"
+        app:layout_constraintBottom_toTopOf="@id/zoom_control"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
