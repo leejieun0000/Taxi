@@ -34,7 +34,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class MapActivity extends AppCompatActivity {
     private static final String TAG = "MapActivity";
     private static final int REQUEST_PERMISSIONS_CODE = 1;
-    private static final String BASE_URL = "http://10.0.2.2:8000/";
+    private static final String BASE_URL = "https://fastapi-server-kleo.onrender.com";
     private TMapView tMapView;
     private String mode;
     private HeatmapService heatmapService;
@@ -46,7 +46,7 @@ public class MapActivity extends AppCompatActivity {
 
         mode = getIntent().getStringExtra("mode");
         TextView header = findViewById(R.id.map_header_text);
-        header.setText("CALL".equals(mode) ? "콜 수신 모드: 수요 지역 안내 중" : "대기 장소 추천 모드");
+        header.setText("CALL".equals(mode) ? "콜 수신 : 수요 지역 안내 중" : "대기 장소 추천");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -69,7 +69,7 @@ public class MapActivity extends AppCompatActivity {
         tMapView.setIconVisibility(true);
         tMapView.setTrackingMode(false);
         tMapView.setSightVisible(true);
-        tMapView.setCenterPoint(129.075642, 35.179554);
+        tMapView.setCenterPoint(129.311348, 35.538485);
 
         mapContainer.addView(tMapView);
 

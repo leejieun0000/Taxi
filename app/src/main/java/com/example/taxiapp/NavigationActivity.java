@@ -79,8 +79,8 @@ public class NavigationActivity extends AppCompatActivity {
         double startLng = intent.getDoubleExtra("startLng", 0);
         double endLat = intent.getDoubleExtra("endLat", 0);
         double endLng = intent.getDoubleExtra("endLng", 0);
-        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.1798);
-        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.076);
+        cityHallLat = intent.getDoubleExtra("cityHallLat", 35.5395);
+        cityHallLng = intent.getDoubleExtra("cityHallLng", 129.311252);
         startName = intent.getStringExtra("startName");
         endName = intent.getStringExtra("endName");
         duration = intent.getIntExtra("duration", -1);
@@ -95,7 +95,7 @@ public class NavigationActivity extends AppCompatActivity {
 
         // --- 뷰 바인딩 및 초기 텍스트 설정 ---
         headerTextView = findViewById(R.id.map_header_text);
-        updateHeaderText("시청역 5번 출구", startName, toStartDuration, toStartDistance);
+        updateHeaderText("울산광역시청", startName, toStartDuration, toStartDistance);
 
         arrivalOverlay       = findViewById(R.id.arrival_overlay);
         arrivalMessage       = findViewById(R.id.arrival_message);
@@ -270,6 +270,8 @@ public class NavigationActivity extends AppCompatActivity {
         }
     }
 
+    // NavigationActivity.java
+
     private void fetchAndShowMarkers() {
         if (heatmapService == null) {
             Log.e(TAG, "heatmapService is null! Retrofit 초기화 확인");
@@ -291,29 +293,20 @@ public class NavigationActivity extends AppCompatActivity {
                 }
                 heatmapKeys.clear();
 
-                // 수요량 순위 계산
-                List<Integer> demands = new ArrayList<>();
-                for (Prediction p : list) demands.add(p.getDemand());
-                Collections.sort(demands, Collections.reverseOrder());
-                int n = demands.size();
-                int redThIdx    = Math.min((int)Math.ceil(n*0.3)-1, n-1);
-                int orangeThIdx = Math.min((int)Math.ceil(n*0.6)-1, n-1);
-                int redTh    = demands.get(Math.max(redThIdx,0));
-                int orangeTh = demands.get(Math.max(orangeThIdx,0));
-
+                // 모든 예측 위치에 빨간색 마커만 표시
                 int idx = 0;
                 for (Prediction p : list) {
-                    int d = p.getDemand();
-                    if (d < orangeTh) continue;  // 하위 40% 스킵
-
-                    Bitmap icon = BitmapFactory.decodeResource(getResources(),
-                            d >= redTh ? R.drawable.marker_red : R.drawable.marker_orange);
-                    String key = "heat_" + (idx++);
                     TMapMarkerItem m = new TMapMarkerItem();
                     m.setTMapPoint(new TMapPoint(p.getLat(), p.getLon()));
+                    m.setVisible(TMapMarkerItem.VISIBLE);
+                    Bitmap icon = BitmapFactory.decodeResource(getResources(), R.drawable.marker_red);
                     m.setIcon(icon);
+                    m.setPosition(0.5f, 1.0f);
+
+                    String key = "heat_" + (++idx);
                     tMapView.addMarkerItem(key, m);
                     heatmapKeys.add(key);
+                    Log.d(TAG, "addHeatmapMarker key=" + key + " at " + p.getLat() + "," + p.getLon());
                 }
             }
 
@@ -323,6 +316,7 @@ public class NavigationActivity extends AppCompatActivity {
             }
         });
     }
+
 
     @Override
     public void onRequestPermissionsResult(int req, @NonNull String[] perms, @NonNull int[] results) {
