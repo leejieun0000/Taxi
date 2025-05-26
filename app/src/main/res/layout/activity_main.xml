@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E1E9FD">
+    android:background="#E8EDF8">
 
     <!-- 상단 헤더 -->
     <LinearLayout
@@ -29,7 +29,7 @@
             android:text="택시 내비"
             android:fontFamily="@font/f_extrabold"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-            android:textColor="#4262AD"
+            android:textColor="#244187"
             android:textSize="50sp" />
     </LinearLayout>
 
@@ -39,7 +39,7 @@
         android:layout_width="850dp"
         android:layout_height="500dp"
         android:layout_below="@id/header"
-        android:layout_margin="70dp"
+        android:layout_margin="80dp"
         android:orientation="vertical"
         android:padding="24dp"
         android:background="@drawable/rounded_card"
